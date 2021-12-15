@@ -1,0 +1,127 @@
+<html>
+
+<head>
+  <title>Chat online</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="cache-control" content="cache" />
+  <meta http-equiv="content-language" content="vi" />
+  <meta http-equiv="revisit-after" content="1 days" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <!-- Latest compiled JavaScript -->
+  <script src="js/bootstrap.min.js"></script>
+  <!-- development version, includes helpful console warnings -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <style>
+    body {
+      min-width: 600px;
+    }
+
+    .jumbotron {
+      padding: 2rem 2rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div class="container">
+      <div class="jumbotron">
+        <h1>Welcome <%= fullname %>
+        </h1>
+        <p>This project was made by HotaVN</p>
+      </div>
+    </div>
+
+    <div class="alert alert-danger" v-if="error.on">
+      <strong>Error:</strong> {{ error.message }}
+    </div>
+    <div class="container">
+      <div class="jumbotron">
+        <div id="formChat">
+          <div class="form-group">
+            <span class="badge badge-dark"><span>{{ users_online }}</span> online now</span>
+          </div>
+          <div class="form-group" v-if="messages.length === 0">
+            <div class="alert alert-warning">
+              Chưa có tin nhắn nào.
+            </div>
+          </div>
+          <div class="form-group mb-2">
+            <input id="input" class="form-control" value="" v-on:keyup.enter="sendData" v-model="input_chat" />
+          </div>
+          <div class="form-group">
+            <div class="media border p-3" v-for="(item, index) in messagesDisplay" v-bind:key="index">
+              <img src="https://i.imgur.com/PjM1CuK.jpg" alt="John Doe" class="mr-3 mt-3 rounded-circle" style="width:60px;">
+              <div class="media-body">
+                <h4 class="media-heading">Unknow</h4>
+                <p>{{ item }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <script type="text/javascript">
+    var socket;
+    var app = new Vue({
+      el: "#app",
+      data: {
+        users_online: 0,
+        input_chat: "",
+        error: { on: false, message: "" },
+        messages: []
+      },
+      methods: {
+        sendData: function () {
+          socket.send(JSON.stringify({ "type": "chat", "data": this.input_chat }));
+          this.input_chat = "";
+        }
+      },
+      computed: {
+        messagesDisplay: function () {
+          return this.messages.reverse();
+        }
+      },
+      mounted() {
+        socket = new WebSocket("ws://localhost:3333/wsChat");
+        socket.onopen = function () {
+          socket.send(JSON.stringify({ "type": "verify" }));
+        }
+        socket.onmessage = function (message) {
+          console.log(message);
+          socket_onmessage_callback(message.data);
+        };
+      }
+    });
+    function socket_onmessage_callback(message) {
+      try {
+        var json = JSON.parse(message);
+        switch (json.type) {
+          case "connections":
+            app.$data.users_online = json.count;
+            break;
+          case "error":
+            app.$data.error.on = true;
+            app.$data.message = json.message;
+            break;
+          case "new_chat":
+            if (app.$data.messages.length > 20) app.$data.messages.slice(0, 1);
+            app.$data.messages.push(json.message);
+            break;
+          case "allChat":
+            break;
+        }
+        console.log(json);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+  </script>
+</body>
+
+</html>
